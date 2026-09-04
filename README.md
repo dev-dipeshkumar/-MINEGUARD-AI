@@ -16,6 +16,8 @@ It is not a dashboard with charts bolted on. It answers four questions on every 
 | **What is becoming risky?** | Risk engine (0–100) + six early-warning detectors with trend deltas |
 | **Why — and what should I do next?** | Factor contributions, drivers, ranked recommendations with **projected point impact**, and a what-if simulator that re-runs the real engine |
 
+**License: MIT** — see [LICENSE](LICENSE). Problem statement: **SIH26024**.
+
 > **Honesty note, stated up front.** This is *explainable rule-based intelligence* (Phase 1).
 > No trained model is claimed anywhere. The scoring path is a deterministic, auditable rule
 > engine whose contract is designed so a trained model can replace it later without touching
@@ -37,6 +39,7 @@ It is not a dashboard with charts bolted on. It answers four questions on every 
 | 8 | [Early warning](#8-early-warning) | 17 | [Security posture](#17-security-posture-as-built-and-what-it-is-not) |
 | 9 | [Workflow and permissions](#9-workflow-and-permissions) | 18 | [Limitations](#18-limitations-acknowledged-not-hidden) |
 | 10 | [API surface](#10-api-surface) | 19 | [Troubleshooting](#19-troubleshooting) |
+| 20 | [License](#20-license) | — | — |
 
 ---
 
@@ -517,7 +520,10 @@ None of those are prototype work — they are deployment work, and `get_actor` i
 6. **Illustrative figures in the brief are not hardcoded.** Where the specification's own numbers
    conflicted with its bands (e.g. "Zone A 32 → LOW" against `LOW ≤ 20`), the bands win and the
    tile is labelled `MODERATE`. All seven deviations are listed with reasons in `docs/DATA_MODEL.md` §9.
-7. **No license file yet.** Say the word (or open a PR) and MIT/Apache-2.0 goes in.
+7. **The rule weights are hand-tuned, not fitted.** `tools/calibrate.py` exists precisely so
+   the coefficients can be re-balanced against a real register's distribution; until someone does
+   that against production data, the numbers are an engineer's defensible starting point, not a
+   validated model.
 
 ---
 
@@ -534,10 +540,38 @@ None of those are prototype work — they are deployment work, and `get_actor` i
 
 ---
 
+## 20. License
+
+MIT © 2026 MINEGUARD AI contributors — see [LICENSE](LICENSE).
+
+In practice: use it, fork it, ship it, relicense your derivative work, no attribution
+machinery beyond keeping the copyright and permission notice in source distributions.
+Two things it does **not** grant, stated because both are easy to assume:
+
+* **No warranty of operational correctness.** This is a decision-support prototype. Its risk
+  scores are explainable rule outputs over the records you feed it, and nothing in it substitutes
+  for a DGMS inspection, a statutory return, or a competent person's judgement. Do not close a
+  real safety gap because a model said the band improved.
+* **No license to any mine, operator, regulation or dataset name.** The four sites
+  (`Alpha Colliery`, `Brahma Open Cast`, `Garba Deep Block`, `Neelam Integrated Mine`) and every
+  record in `api/seed.py` are fictional demonstration data. The clause-like strings attached to
+  the 17 violation categories — e.g. `"Coal Mine Reg. 106(2) — protective equipment"`,
+  `"Mines Act 60 — supervision ratio"` — are illustrative labels used to make a register entry
+  quotable in the UI. They are **not** verified quotations of current statute: check them against
+  the actual DGMS/Coal India text before anything built on this is used for a real obligation.
+
+If you need an explicit patent grant instead — a plausible requirement for a public-sector or
+operator deployment — swap in Apache-2.0: one file and one line here, and the code does not
+change. Contributions are accepted under the same license (inbound = outbound); no CLA, no
+assigner agreement.
+
+---
+
 ### Further reading
 
 * [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — every collection field-by-field, the derived
   `computed` layer, the exact formulas and constants, alert keying, the endpoint→data map, and
   the documented deviations from the specification.
 * [`requirements.txt`](requirements.txt) — one-command recovery.
-* Problem statement: **SIH26024** — compliance risk prediction for coal mines.
+* Problem statement: **SIH26024** — compliance risk prediction for coal mines (also noted in
+  the header, so the two must stay consistent).

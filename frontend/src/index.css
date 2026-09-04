@@ -1,0 +1,259 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------ tokens */
+/* Semantic tokens only. Nothing in a component hardcodes a hex value, so the
+   dark/light themes are a token swap rather than a second stylesheet.        */
+:root,
+.theme-dark {
+  --bg-app: #0a0e14;
+  --bg-panel: #11161f;
+  --bg-raised: #171e29;
+  --bg-sunken: #0c1118;
+  --line: #232c3a;
+  --line-strong: #33404f;
+  --text: #e8edf5;
+  --text-dim: #97a4b8;
+  --text-faint: #64748b;
+  --accent: #4c8ef7;
+  --accent-ink: #04070c;
+  --accent-line: rgba(76, 142, 247, 0.42);
+  --pulse: rgba(226, 80, 76, 0.45);
+  --flash: rgba(76, 142, 247, 0.22);
+  --risk-low: #2fa36b;
+  --risk-moderate: #b8912f;
+  --risk-elevated: #d97b23;
+  --risk-high: #e2504c;
+  --risk-critical: #ff2d55;
+  --ok: #2fa36b;
+  --warn: #d97b23;
+  --danger: #e2504c;
+  --info: #4c8ef7;
+
+  /* non-band semantic tones resolve through the same --risk-* channel so any
+     component can pass a tone name without knowing which family it belongs to */
+  --risk-accent: var(--accent);
+  --risk-info: var(--info);
+  --risk-ok: var(--ok);
+  --risk-warn: var(--warn);
+  --risk-neutral: var(--text-faint);
+  --grid: rgba(255, 255, 255, 0.03);
+  color-scheme: dark;
+}
+
+.theme-light {
+  --bg-app: #eef1f5;
+  --bg-panel: #ffffff;
+  --bg-raised: #f7f9fc;
+  --bg-sunken: #e4e8ef;
+  --line: #d7dde6;
+  --line-strong: #b9c3d0;
+  --text: #10161f;
+  --text-dim: #4d5b6e;
+  --text-faint: #7b8798;
+  --accent: #1d5fd0;
+  --accent-ink: #ffffff;
+  --accent-line: rgba(29, 95, 208, 0.3);
+  --pulse: rgba(200, 40, 40, 0.3);
+  --flash: rgba(29, 95, 208, 0.14);
+  --risk-low: #1c7f4f;
+  --risk-moderate: #96700f;
+  --risk-elevated: #b05c07;
+  --risk-high: #c02f2c;
+  --risk-critical: #a5102c;
+  --ok: #1c7f4f;
+  --warn: #b05c07;
+  --danger: #c02f2c;
+  --info: #1d5fd0;
+
+  /* non-band semantic tones resolve through the same --risk-* channel so any
+     component can pass a tone name without knowing which family it belongs to */
+  --risk-accent: var(--accent);
+  --risk-info: var(--info);
+  --risk-ok: var(--ok);
+  --risk-warn: var(--warn);
+  --risk-neutral: var(--text-faint);
+  --grid: rgba(10, 20, 40, 0.04);
+  color-scheme: light;
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-app text-ink font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'tnum';
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  /* tabular numerals everywhere a number can change width — an ops console
+     must not jitter when scores update live. */
+  .tnum,
+  table,
+  input[type='number'] {
+    font-variant-numeric: tabular-nums;
+  }
+  ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--accent-line);
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-tightest;
+  }
+}
+
+/* Field devices. Touch screens get real tap targets, and inputs go to 16px
+   because anything smaller makes mobile Safari zoom the viewport on focus —
+   which is how a dense desktop layout turns into an unusable phone screen. */
+@media (hover: none) and (pointer: coarse) {
+  .field-input,
+  input[type='date'],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  .field-input {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  button {
+    min-height: 36px;
+  }
+  table {
+    font-size: 13px;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-panel border border-line rounded-md;
+  }
+  .panel-header {
+    @apply flex items-center justify-between gap-3 px-4 py-2.5 border-b border-line;
+  }
+  .panel-title {
+    @apply text-[13px] font-semibold uppercase tracking-wide2 text-ink-dim;
+  }
+  .kpi-value {
+    @apply font-mono text-[26px] leading-none font-semibold tracking-tightest;
+  }
+  .label {
+    @apply text-[10px] font-semibold uppercase tracking-wide2 text-ink-faint;
+  }
+  .hairline {
+    @apply border-t border-line;
+  }
+  .mono {
+    @apply font-mono text-[12px];
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide2;
+  }
+  .field-input {
+    @apply w-full bg-sunken border border-line rounded px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-faint transition-colors;
+  }
+  .field-input:hover {
+    @apply border-line-strong;
+  }
+  .field-input:focus {
+    @apply border-accent outline-none;
+    box-shadow: 0 0 0 3px var(--accent-line);
+  }
+  .field-input[aria-invalid='true'] {
+    @apply border-danger;
+  }
+  .row-hover {
+    @apply transition-colors hover:bg-raised;
+  }
+  .skeleton {
+    @apply rounded;
+    background: linear-gradient(90deg, var(--bg-sunken) 25%, var(--bg-raised) 50%, var(--bg-sunken) 75%);
+    background-size: 900px 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+  .section-label {
+    @apply flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide2 text-ink-faint;
+  }
+}
+
+/* risk accents are exposed as custom props so bars, dots and text share one
+   source of truth and every band stays legible in both themes */
+.tone-low {
+  --tone: var(--risk-low);
+}
+.tone-moderate {
+  --tone: var(--risk-moderate);
+}
+.tone-elevated {
+  --tone: var(--risk-elevated);
+}
+.tone-high {
+  --tone: var(--risk-high);
+}
+.tone-critical {
+  --tone: var(--risk-critical);
+}
+.tone-accent {
+  --tone: var(--accent);
+}
+.tone-info {
+  --tone: var(--info);
+}
+.tone-ok {
+  --tone: var(--ok);
+}
+.tone-text {
+  color: var(--tone);
+}
+.tone-bg {
+  background: var(--tone);
+}
+.tone-soft {
+  background: color-mix(in srgb, var(--tone) 15%, transparent);
+  border-color: color-mix(in srgb, var(--tone) 42%, transparent) !important;
+  color: var(--tone);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

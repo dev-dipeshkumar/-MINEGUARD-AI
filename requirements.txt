@@ -1,0 +1,26 @@
+# MINEGUARD AI — backend (Python 3.11+)
+#
+# The sandbox image does not persist site-packages between sessions, so this file
+# exists to make the prototype reproducible in one command:
+#
+#   pip install -r requirements.txt
+#   python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8000
+#   python3 tools/e2e_test.py            # 106 checks, no network needed
+#
+fastapi>=0.115
+uvicorn>=0.30
+python-multipart>=0.0.9   # multipart form parsing for /api/documents/upload
+pypdf>=4.0                # PDF text-layer extraction (optional; the pipeline degrades gracefully without it)
+
+# Not required, but changes what Document Intelligence can do:
+#   pdftotext (poppler-utils) — fallback text extractor
+#   pytesseract + tesseract   — enables OCR on scanned pages; availability is reported
+#                               by GET /api/config -> ocr_engines rather than assumed
+
+# Deliberately absent:
+#   SQLAlchemy / asyncpg — the store sits behind a repository seam in api/store.py;
+#                         Postgres is a swap, not a rewrite (docs/DATA_MODEL.md §1, §10)
+#   torch / sklearn      — Phase 1 is explainable rule-based scoring; no trained model
+#                         is claimed anywhere. The ML contract is api/services/risk_engine.py
+#                         (MLModelRiskScoringStrategy), and there is no pandas dependency
+#                         in the request path.

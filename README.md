@@ -16,7 +16,7 @@ It is not a dashboard with charts bolted on. It answers four questions on every 
 | **What is becoming risky?** | Risk engine (0–100) + six early-warning detectors with trend deltas |
 | **Why — and what should I do next?** | Factor contributions, drivers, ranked recommendations with **projected point impact**, and a what-if simulator that re-runs the real engine |
 
-**License: MIT** — see [LICENSE](LICENSE). Problem statement: **SIH26024**.
+Problem statement: **SIH26024**.
 
 > **Honesty note, stated up front.** This is *explainable rule-based intelligence* (Phase 1).
 > No trained model is claimed anywhere. The scoring path is a deterministic, auditable rule

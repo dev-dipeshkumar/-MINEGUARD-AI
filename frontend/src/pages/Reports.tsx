@@ -41,8 +41,23 @@ export function ReportsPage() {
 
   const doc = generated ?? data
   const scoped = reportType === 'MINE_RISK_ASSESSMENT' || reportType === 'MINE_COMPLIANCE_SUMMARY'
+  const mineOptions = index?.mines ?? boot?.mines ?? []
+
+  /*
+   * Two report types are per-site by definition, and the API refuses them without a
+   * mine. Landing on /reports therefore used to fire a preview that answered 400.
+   * Selecting the first mine as soon as a site-scoped type is active keeps the request
+   * valid without hiding the choice — the control stays editable.
+   */
+  useEffect(() => {
+    if (scoped && !mineId && mineOptions.length) setMineId(mineOptions[0].id)
+  }, [scoped, mineId, mineOptions.length])
 
   const generate = async () => {
+    if (scoped && !mineId) {
+      setGenerated({ error: 'Choose a mine first — this document is produced per site.' })
+      return
+    }
     setGenerating(true)
     try {
       const res = await api.post<any>(endpoints.generateReport, { report_type: reportType, mine_id: mineId || null, days: Number(days) })

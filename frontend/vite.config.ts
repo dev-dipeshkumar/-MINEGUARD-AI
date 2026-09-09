@@ -12,7 +12,7 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_TARGET || 'https://mineguard-ai-wn1a.onrender.com',
+        target: process.env.VITE_API_TARGET || 'https://mineguard-ai-rafx.onrender.com',
         changeOrigin: true,
       },
     },

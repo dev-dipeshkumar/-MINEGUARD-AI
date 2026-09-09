@@ -5,7 +5,9 @@
   "outputDirectory": "dist",
   "installCommand": "npm ci",
   "skewProtection": "max",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",

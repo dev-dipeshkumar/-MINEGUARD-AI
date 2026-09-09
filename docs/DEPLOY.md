@@ -167,3 +167,63 @@ demo that should not be indexed.
   instance, no SSH, no one-off jobs, no scaling. A p90 of a few hundred ms on the
   compute-heavy endpoints is expected there; the timing middleware
   (`X-Mineguard-Compute-Ms`) is how you tell a cold instance from a slow query.
+
+---
+
+## 7. "Backend not reachable" on a live URL — read the response, not the message
+
+The shell rendering *that specific screen* is good news: it means the SPA bundle
+loaded and only its data call failed. The UI (`src/App.tsx`) shows it whenever
+`/api/bootstrap` does not return JSON. Five causes, each with a one-line check —
+run them in order and you will land on yours:
+
+| # | What `curl -i` shows | Meaning | Fix |
+| --- | --- | --- | --- |
+| 1 | Vercel/CDN origin: `200` + body `The page could not be found` / `NOT_FOUND` / `<region>::<req-id>` | There is **no API on that origin at all** — the body is the platform's own 404 page, not FastAPI's JSON. A static Vite deploy hosts files only. | §8 |
+| 2 | `503` with header `x-render-routing: suspend` and body `This service has been suspended.` | Render **suspended** the service: free instance-hours used up (750/workspace/month), outbound bandwidth exceeded with no payment method, or the service-initiated-traffic threshold. | Dashboard → Billing. On the Free plan only a paid compute plan restores it. |
+| 3 | `200`/`503` HTML "loading" page from Render | Idle spin-down; Render answers while it wakes | Wait ~60 s, then retry. Keep `/api/health` open in a tab during a demo |
+| 4 | `200 {"status":"ok","engine":...}` | API healthy → the *client* is not pointing at it | §8, and note 5 below |
+| 5 | Deep links (`/command-centre`) `404` but `/` works | No SPA fallback rewrite on the static host | deploy with `frontend/vercel.json` |
+
+**5. `VITE_API_BASE_URL` is baked at build time.** It is read by Vite while
+building, not at request time — adding the env var and *not* redeploying changes
+nothing, and a bundle built from a commit that predates `apiUrl()` in
+`frontend/src/lib/api.ts` has no hook at all (the deployed JS simply contains
+relative `/api` strings). Confirm which build you are serving:
+
+```bash
+JS=$(curl -s https://mineguardai.vercel.app/ | grep -o '/assets/index-[A-Za-z0-9_-]*\.js' | head -1)
+curl -s "https://mineguardai.vercel.app$JS" | grep -c "onrender"   # 0 => base hook absent or unset
+```
+
+## 8. Making a Vercel-hosted UI talk to a Render-hosted API
+
+Two ways; both live in this repo. Pick by whether the deployed bundle has the hook.
+
+**A. Edge proxy (works with ANY bundle, including one built before the hook).**
+Vercel forwards `/api/*` to Render, so the browser stays same-origin:
+
+```bash
+RENDER_URL=https://<your-service>.onrender.com bash tools/vercel-config.sh
+# writes frontend/vercel.json, validates the JSON and asserts the /api rule sits
+# above the SPA fallback — get that order wrong and every data call comes back as
+# a 200 full of HTML, which renders exactly the screen in §7.
+git add frontend/vercel.json && git commit -m "chore(vercel): proxy /api to Render" && git push
+npx vercel deploy --prod --cwd frontend --token "$VERCEL_API_TOKEN"
+```
+
+Check it from the outside: `curl -i https://mineguardai.vercel.app/api/health` must
+return the JSON from table row 4, now served by the Vercel origin.
+
+**B. Client-side base (no proxy hop, browser talks to Render directly).** Needs a
+build that contains `apiUrl()`: set `VITE_API_BASE_URL=https://<service>.onrender.com`
+in Vercel → Settings → Environment Variables → **Production**, then redeploy (a
+redeploy is a rebuild; that is what matters). CORS is already open
+(`allow_origins=["*"]`, `allow_credentials=False`, `allow_headers=["*"]` in
+`api/main.py`), so no server change is needed, and uploads keep working
+cross-origin because the client sends no cookies.
+
+Do **not** try to host the API on Vercel for this app: the persistence layer is a
+mutable file (`api/store.py` `DATA_PATH`), which serverless cannot give you. That is
+the whole reason §8 has a Render half.
+

@@ -6,6 +6,7 @@
   "installCommand": "npm ci",
   "skewProtection": "max",
   "rewrites": [
+    { "source": "/api/:path*", "destination": "https://mineguard-ai-wn1a.onrender.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

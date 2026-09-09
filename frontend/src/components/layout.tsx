@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Badge, Button, Icon, IconButton, KeyHint, cx, type IconName } from './ui'
 import { useApp } from '../state/app'
-import { getEngineMeta, onEngineMeta, type EngineMeta } from '../lib/api'
+import { apiUrl, getEngineMeta, onEngineMeta, type EngineMeta } from '../lib/api'
 import { bandFor } from '../lib/format'
 
 /**
@@ -166,7 +166,7 @@ function NavCount({ kind, collapsed }: { kind: 'alerts'; collapsed: boolean }) {
   const [n, setN] = useState<number | null>(null)
   useEffect(() => {
     let alive = true
-    fetch('/api/alerts')
+    fetch(apiUrl('/api/alerts'))
       .then((r) => r.json())
       .then((d) => alive && setN(d.alerts.filter((a: any) => a.severity === 'CRITICAL').length))
       .catch(() => alive && setN(null))
@@ -224,7 +224,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
 
   const doReset = async () => {
     setResetting(true)
-    await mutate(() => fetch('/api/admin/reset', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-User-Id': actorId } }).then(async (r) => {
+    await mutate(() => fetch(apiUrl('/api/admin/reset'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-User-Id': actorId } }).then(async (r) => {
       const payload = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(String((payload as any).detail ?? 'Reset failed'))
       return payload
@@ -382,7 +382,7 @@ function Statusbar() {
   useEffect(() => {
     let alive = true
     const ping = () =>
-      fetch('/api/health')
+      fetch(apiUrl('/api/health'))
         .then((r) => r.json())
         .then((d) => alive && setHealth(d))
         .catch(() => alive && setHealth(null))

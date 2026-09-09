@@ -4,7 +4,7 @@ import { PageBody, PageHeader } from '../components/layout'
 import { Badge, Button, EmptyState, ErrorState, Icon, Panel, SegmentedControl, Select, Skeleton, cx } from '../components/ui'
 import { ExplanationPanel, RiskBadge } from '../components/risk'
 import { useApp, useAsync, useDocumentTitle } from '../state/app'
-import { api, endpoints } from '../lib/api'
+import { apiUrl, api, endpoints } from '../lib/api'
 import { downloadText, fmt, fmtDate } from '../lib/format'
 
 /**
@@ -73,7 +73,7 @@ export function ReportsPage() {
   const download = async (format: 'md' | 'csv' | 'txt') => {
     const qs = new URLSearchParams({ days, format })
     if (mineId) qs.set('mine_id', mineId)
-    const res = await fetch(`/api/reports/download/${reportType}?${qs}`)
+    const res = await fetch(apiUrl(`/api/reports/download/${reportType}?${qs}`))
     if (!res.ok) return
     const text = await res.text()
     downloadText(`mineguard-${reportType.toLowerCase()}-${mineId || 'enterprise'}-${days}d.${format}`, text, format === 'csv' ? 'text/csv' : 'text/plain')

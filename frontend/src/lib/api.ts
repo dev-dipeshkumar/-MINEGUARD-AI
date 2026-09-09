@@ -1,13 +1,25 @@
 /**
  * Typed API client.
  *
- * One place owns: base URL (always relative — the dev server proxies /api and
- * the production build is served by FastAPI), the actor header used for
- * server-side authorisation, error normalisation, and the abort-on-unmount
- * pattern used by every read hook.
+ * One place owns: base URL, the actor header used for server-side
+ * authorisation, error normalisation, and the abort-on-unmount pattern used by
+ * every read hook.
+ *
+ * The base is relative by default — the dev server proxies /api and the
+ * production build is served by FastAPI itself (sandbox preview, Docker
+ * deploy), which keeps every call same-origin. Set `VITE_API_BASE_URL` at build
+ * time only when the UI is hosted apart from the API (e.g. static hosting →
+ * Render web service); the API already answers cross-origin preflights.
  */
 
 const ACTOR_KEY = 'mineguard.actor'
+
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+
+/** Resolve an app-relative `/api/...` path against the configured API origin. */
+export function apiUrl(path: string): string {
+  return API_BASE && path.startsWith('/api') ? `${API_BASE}${path}` : path
+}
 
 export class ApiError extends Error {
   status: number
@@ -88,10 +100,15 @@ async function request<T>(method: string, path: string, body?: unknown, opts: { 
   if (body !== undefined) init.body = JSON.stringify(body)
   let res: Response
   try {
-    res = await fetch(path, init)
+    res = await fetch(apiUrl(path), init)
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err
-    throw new ApiError('Cannot reach the MINEGUARD API. Check that the backend is running on port 8000.', 0)
+    throw new ApiError(
+      API_BASE
+        ? `Cannot reach the MINEGUARD API at ${API_BASE}.`
+        : 'Cannot reach the MINEGUARD API. Check that the backend is running on port 8000.',
+      0,
+    )
   }
   noteMeta(res, path)
   const text = await res.text()
@@ -119,14 +136,14 @@ export const api = {
   post: <T,>(path: string, body?: unknown, signal?: AbortSignal) => request<T>('POST', path, body ?? {}, { signal }),
   patch: <T,>(path: string, body?: unknown, signal?: AbortSignal) => request<T>('PATCH', path, body ?? {}, { signal }),
   async upload<T,>(path: string, form: FormData): Promise<T> {
-    const res = await fetch(path, { method: 'POST', body: form, headers: { 'X-User-Id': currentActor() } })
+    const res = await fetch(apiUrl(path), { method: 'POST', body: form, headers: { 'X-User-Id': currentActor() } })
     noteMeta(res, path)
     const text = await res.text()
     const payload = text ? JSON.parse(text) : null
     if (!res.ok) throw new ApiError(String(payload?.detail ?? `Upload failed (${res.status})`), res.status, payload)
     return payload as T
   },
-  downloadUrl: (path: string) => path,
+  downloadUrl: (path: string) => apiUrl(path),
 }
 
 // ----------------------------------------------------------------- endpoints

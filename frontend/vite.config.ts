@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
+    allowedHosts: ['sb-2yqqq75gfg9c.vercel.run'],
     port: 5173,
     strictPort: true,
     proxy: {

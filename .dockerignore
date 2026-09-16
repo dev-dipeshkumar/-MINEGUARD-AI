@@ -1,0 +1,51 @@
+# Build-context hygiene for the Dockerfile above.
+# Nothing here is needed to build the image — and `data/` / `.env` must never
+# leak into a layer that could be pushed somewhere public.
+
+# ---- version control / editor / os ----
+.git
+.github
+.gitignore
+.vscode
+.idea
+.DS_Store
+*.swp
+
+# ---- secrets ----
+.env
+.env.*
+*.pem
+*.key
+
+# ---- local environments & caches (image installs its own) ----
+**/node_modules
+.venv
+venv
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.npm
+.vite
+coverage
+
+# ---- built assets: stage 1 rebuilds the SPA from source ----
+frontend/dist
+**/dist
+**/build
+*.tsbuildinfo
+
+# ---- runtime state: api/store.py seeds it on first boot ----
+data
+
+# ---- docs, deck artefacts, dev tooling: not required at build or run time ----
+docs
+tools
+README.md
+LICENSE
+scripts
+*.log
+*.md
+!frontend/**/*.md

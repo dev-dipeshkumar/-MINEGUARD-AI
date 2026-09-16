@@ -1,0 +1,45 @@
+# ---------------------------------------------------------------------------
+# MINEGUARD AI — Render Blueprint (infrastructure as code)
+#
+# Apply with the CLI (no dashboard clicking):
+#   export PATH="$PATH:$HOME/.local/bin"
+#   render login                      # browser-authorised CLI token
+#   render blueprints validate ./render.yaml
+#   render services create ./render.yaml   # or: New Blueprint in the dashboard
+#
+# One service does everything: the Dockerfile compiles the SPA and FastAPI
+# serves both the UI and /api from the same origin, so there is nothing else to
+# configure (no CORS, no second URL, no client-side API base).
+#
+# NOTE on the Free plan (deliberate, and worth knowing before a demo):
+#   * idle services spin down after 15 min; the next request waits ~1 min
+#   * the filesystem is EPHEMERAL — data/store.json and data/uploads/ are reset
+#     on every restart / redeploy / spin-down. api/store.py reseeds the same
+#     deterministic baseline each boot, which is exactly the documented
+#     `POST /api/admin/reset` behaviour the deck demonstrates.
+#   * persistent disks are paid-only; to keep state across restarts, switch
+#     `plan` to a paid tier and add a `disk` (see docs/DEPLOY.md §4)
+# ---------------------------------------------------------------------------
+services:
+  - type: web
+    name: mineguard-ai
+    runtime: docker
+    plan: free
+    # Oregon is where the Free plan is guaranteed; singapore/frankfurt are
+    # lower-latency for India but may require a paid plan in your workspace.
+    region: oregon
+    branch: main
+    repo: https://github.com/dev-dipeshkumar/-MINEGUARD-AI
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    numInstances: 1
+    envVars:
+      # Rolling window the engine scores against; keeps the demo anchored to the
+      # current date (the seeded corpus is generated relative to today).
+      - key: MINEGUARD_HISTORY_DAYS
+        value: "90"
+      # rule-based today; `ml` is only accepted once an MLModelRiskScoringStrategy
+      # implementation is registered (api/services/risk_engine.py).
+      - key: MINEGUARD_ENGINE
+        value: rule-based

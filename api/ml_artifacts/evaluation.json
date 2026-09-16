@@ -1,0 +1,388 @@
+{
+  "best_model": "linear_svm",
+  "corpus_size": 714,
+  "class_counts": {
+    "HIGH": 218,
+    "CRITICAL": 166,
+    "MEDIUM": 199,
+    "LOW": 131
+  },
+  "results": {
+    "naive_bayes": {
+      "cv": {
+        "n_splits": 5,
+        "accuracy_mean": 0.935565842608096,
+        "accuracy_std": 0.022749670195213956,
+        "macro_precision_mean": 0.9421831061986333,
+        "macro_recall_mean": 0.9364726445591698,
+        "macro_f1_mean": 0.938238896246145,
+        "macro_f1_std": 0.02164578293134563,
+        "per_fold_accuracy": [
+          0.9441,
+          0.972,
+          0.9021,
+          0.9301,
+          0.9296
+        ],
+        "per_fold_macro_f1": [
+          0.9448,
+          0.9748,
+          0.9088,
+          0.9317,
+          0.9311
+        ]
+      },
+      "holdout": {
+        "test_size": 143,
+        "train_size": 571,
+        "fit_seconds": 0.0139,
+        "inference_ms_per_sample": 0.0229,
+        "accuracy": 0.9371,
+        "per_class": [
+          {
+            "class": "CRITICAL",
+            "precision": 0.8889,
+            "recall": 0.9697,
+            "f1": 0.9275,
+            "support": 33
+          },
+          {
+            "class": "HIGH",
+            "precision": 0.9091,
+            "recall": 0.9091,
+            "f1": 0.9091,
+            "support": 44
+          },
+          {
+            "class": "MEDIUM",
+            "precision": 0.9737,
+            "recall": 0.925,
+            "f1": 0.9487,
+            "support": 40
+          },
+          {
+            "class": "LOW",
+            "precision": 1.0,
+            "recall": 0.9615,
+            "f1": 0.9804,
+            "support": 26
+          }
+        ],
+        "confusion_matrix": [
+          [
+            32,
+            1,
+            0,
+            0
+          ],
+          [
+            3,
+            40,
+            1,
+            0
+          ],
+          [
+            1,
+            2,
+            37,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            25
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "CRITICAL",
+          "HIGH",
+          "MEDIUM",
+          "LOW"
+        ]
+      }
+    },
+    "logistic_regression": {
+      "cv": {
+        "n_splits": 5,
+        "accuracy_mean": 0.9453560523983059,
+        "accuracy_std": 0.019558885916791117,
+        "macro_precision_mean": 0.9479859564699744,
+        "macro_recall_mean": 0.9453995265007578,
+        "macro_f1_mean": 0.9460004801100504,
+        "macro_f1_std": 0.019026985828686165,
+        "per_fold_accuracy": [
+          0.951,
+          0.979,
+          0.9231,
+          0.9441,
+          0.9296
+        ],
+        "per_fold_macro_f1": [
+          0.9505,
+          0.9795,
+          0.9278,
+          0.9444,
+          0.9277
+        ]
+      },
+      "holdout": {
+        "test_size": 143,
+        "train_size": 571,
+        "fit_seconds": 0.0369,
+        "inference_ms_per_sample": 0.0242,
+        "accuracy": 0.9441,
+        "per_class": [
+          {
+            "class": "CRITICAL",
+            "precision": 0.8611,
+            "recall": 0.9394,
+            "f1": 0.8986,
+            "support": 33
+          },
+          {
+            "class": "HIGH",
+            "precision": 0.9762,
+            "recall": 0.9318,
+            "f1": 0.9535,
+            "support": 44
+          },
+          {
+            "class": "MEDIUM",
+            "precision": 1.0,
+            "recall": 0.95,
+            "f1": 0.9744,
+            "support": 40
+          },
+          {
+            "class": "LOW",
+            "precision": 0.9259,
+            "recall": 0.9615,
+            "f1": 0.9434,
+            "support": 26
+          }
+        ],
+        "confusion_matrix": [
+          [
+            31,
+            1,
+            0,
+            1
+          ],
+          [
+            3,
+            41,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            38,
+            1
+          ],
+          [
+            1,
+            0,
+            0,
+            25
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "CRITICAL",
+          "HIGH",
+          "MEDIUM",
+          "LOW"
+        ]
+      }
+    },
+    "linear_svm": {
+      "cv": {
+        "n_splits": 5,
+        "accuracy_mean": 0.9467546537969073,
+        "accuracy_std": 0.02015684880690693,
+        "macro_precision_mean": 0.9512331853179792,
+        "macro_recall_mean": 0.945749176850408,
+        "macro_f1_mean": 0.9475516878189874,
+        "macro_f1_std": 0.020332388582449408,
+        "per_fold_accuracy": [
+          0.958,
+          0.979,
+          0.9231,
+          0.9441,
+          0.9296
+        ],
+        "per_fold_macro_f1": [
+          0.9571,
+          0.9815,
+          0.9271,
+          0.9444,
+          0.9277
+        ]
+      },
+      "holdout": {
+        "test_size": 143,
+        "train_size": 571,
+        "fit_seconds": 0.023,
+        "inference_ms_per_sample": 0.0225,
+        "accuracy": 0.9441,
+        "per_class": [
+          {
+            "class": "CRITICAL",
+            "precision": 0.8857,
+            "recall": 0.9394,
+            "f1": 0.9118,
+            "support": 33
+          },
+          {
+            "class": "HIGH",
+            "precision": 0.9767,
+            "recall": 0.9545,
+            "f1": 0.9655,
+            "support": 44
+          },
+          {
+            "class": "MEDIUM",
+            "precision": 0.9744,
+            "recall": 0.95,
+            "f1": 0.962,
+            "support": 40
+          },
+          {
+            "class": "LOW",
+            "precision": 0.9231,
+            "recall": 0.9231,
+            "f1": 0.9231,
+            "support": 26
+          }
+        ],
+        "confusion_matrix": [
+          [
+            31,
+            1,
+            0,
+            1
+          ],
+          [
+            2,
+            42,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            38,
+            1
+          ],
+          [
+            1,
+            0,
+            1,
+            24
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "CRITICAL",
+          "HIGH",
+          "MEDIUM",
+          "LOW"
+        ]
+      }
+    },
+    "random_forest": {
+      "cv": {
+        "n_splits": 5,
+        "accuracy_mean": 0.8655372796217866,
+        "accuracy_std": 0.03080754480096658,
+        "macro_precision_mean": 0.8967605164817328,
+        "macro_recall_mean": 0.8633113493134014,
+        "macro_f1_mean": 0.8722833834754479,
+        "macro_f1_std": 0.03226975312765489,
+        "per_fold_accuracy": [
+          0.8951,
+          0.8951,
+          0.8112,
+          0.8671,
+          0.8592
+        ],
+        "per_fold_macro_f1": [
+          0.9022,
+          0.9042,
+          0.8156,
+          0.8755,
+          0.8638
+        ]
+      },
+      "holdout": {
+        "test_size": 143,
+        "train_size": 571,
+        "fit_seconds": 0.3218,
+        "inference_ms_per_sample": 0.3408,
+        "accuracy": 0.9091,
+        "per_class": [
+          {
+            "class": "CRITICAL",
+            "precision": 0.8649,
+            "recall": 0.9697,
+            "f1": 0.9143,
+            "support": 33
+          },
+          {
+            "class": "HIGH",
+            "precision": 0.8864,
+            "recall": 0.8864,
+            "f1": 0.8864,
+            "support": 44
+          },
+          {
+            "class": "MEDIUM",
+            "precision": 0.9231,
+            "recall": 0.9,
+            "f1": 0.9114,
+            "support": 40
+          },
+          {
+            "class": "LOW",
+            "precision": 1.0,
+            "recall": 0.8846,
+            "f1": 0.9388,
+            "support": 26
+          }
+        ],
+        "confusion_matrix": [
+          [
+            32,
+            1,
+            0,
+            0
+          ],
+          [
+            3,
+            39,
+            2,
+            0
+          ],
+          [
+            2,
+            2,
+            36,
+            0
+          ],
+          [
+            0,
+            2,
+            1,
+            23
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "CRITICAL",
+          "HIGH",
+          "MEDIUM",
+          "LOW"
+        ]
+      }
+    }
+  }
+}

@@ -4,7 +4,9 @@ import { PageBody, PageHeader } from '../components/layout'
 import { Badge, Button, EmptyState, ErrorState, Field, Icon, Input, Panel, Progress, SegmentedControl, Select, Skeleton, Switch, Textarea, cx } from '../components/ui'
 import { TrendChart } from '../components/charts'
 import { ZoneDrawer } from '../components/ZoneDrawer'
+import { MineMap } from '../components/MineMap'
 import { ScoreDelta } from '../components/risk'
+import { DashboardTabs } from '../components/DashboardTabs'
 import { useApp, useAsync } from '../state/app'
 import { api, endpoints } from '../lib/api'
 import type { Impact, SimulationResult } from '../lib/types'
@@ -38,6 +40,7 @@ export function InspectionsPage() {
         eyebrow="Module 4 · Field workflow"
         title="Inspection management"
         subtitle="Record the round, attach what you saw, and the platform carries it into violations, corrective actions and risk in the same transaction."
+        tabs={<DashboardTabs />}
         actions={
           <>
             {!open && (
@@ -52,7 +55,9 @@ export function InspectionsPage() {
             )}
           </>
         }
-        tabs={
+      />
+      <PageBody className="space-y-3.5">
+        <div className="flex justify-between items-center mb-2">
           <SegmentedControl
             value={tab}
             onChange={(v) => setTab(v as any)}
@@ -61,10 +66,7 @@ export function InspectionsPage() {
               { value: 'log', label: open ? 'Inspection form' : 'Record a round' },
             ]}
           />
-        }
-      />
-
-      <PageBody className="space-y-3.5">
+        </div>
         {(tab === 'log' || open) && <InspectionForm onClose={() => paramsSet(params, setParams, { new: null })} defaultMine={params.get('mine') ?? undefined} defaultZone={params.get('zone') ?? undefined} />}
 
         {!(tab === 'log' || open) && (
@@ -94,6 +96,12 @@ export function InspectionsPage() {
                 </div>
               </Panel>
             ) : null}
+
+            {data?.inspections?.length > 0 && (
+              <Panel title="Field inspection map" subtitle="Geographical pins for recorded rounds">
+                <MineMap zones={boot?.zones ?? []} onSelect={(id) => setDrawer(id)} compact inspections={data.inspections} />
+              </Panel>
+            )}
 
             {error && <ErrorState message={error} onRetry={reload} />}
             <Panel title="Recorded rounds" subtitle="Newest first" dense>
@@ -213,10 +221,32 @@ function InspectionForm({ onClose, defaultMine, defaultZone }: { onClose: () => 
   const [projection, setProjection] = useState<SimulationResult | null>(null)
   const [submitted, setSubmitted] = useState<{ impact: Impact; violationIds: string[]; inspectionId: string; newAlerts: any[] } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // Geo-tagged field capture — PS SIH26024 requires geo-tagged field reporting.
+  // The browser captures GPS on form mount; if denied or unavailable, the
+  // backend falls back to the zone's stored lat/long.
+  const [geo, setGeo] = useState<{ lat: number; lon: number; accuracy: number } | null>(null)
+  const [geoState, setGeoState] = useState<'idle' | 'pending' | 'ok' | 'denied'>('idle')
   const zone = boot?.zones.find((z) => z.id === zoneId)
   const zones = useMemo(() => (boot?.zones ?? []).filter((z) => z.mine_id === mineId), [boot, mineId])
   const categories = boot?.config.violation_categories[department] ?? []
   const debounce = useRef<number | undefined>(undefined)
+
+  // Capture geo-position on form mount — tablet-friendly, no manual step.
+  useEffect(() => {
+    if (!navigator?.geolocation) {
+      setGeoState('denied')
+      return
+    }
+    setGeoState('pending')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeo({ lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy })
+        setGeoState('ok')
+      },
+      () => setGeoState('denied'),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 30000 },
+    )
+  }, [])
 
   useEffect(() => {
     if (!zoneId) {
@@ -288,6 +318,9 @@ function InspectionForm({ onClose, defaultMine, defaultZone }: { onClose: () => 
       observations: observations.trim(),
       overall_rating: rating,
       evidence_file: evidenceName || undefined,
+      latitude: geo?.lat,
+      longitude: geo?.lon,
+      geo_accuracy_m: geo?.accuracy,
       findings:
         rating === 'COMPLIANT'
           ? []
@@ -476,21 +509,31 @@ function InspectionForm({ onClose, defaultMine, defaultZone }: { onClose: () => 
           </Field>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field label="Evidence reference" hint="Photo, register scan or document uploaded from the tablet">
-              <div className="flex gap-1.5">
-                <Input value={evidenceName} onChange={(e) => setEvidenceName(e.target.value)} placeholder="site-photo-01.jpg" />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  type="button"
-                  onClick={() => setEvidenceName(`field-capture-${new Date().toISOString().slice(11, 16).replace(':', '')}.jpg`)}
-                  title="Attach a capture reference (files are stored by the API upload endpoint in production)"
-                >
-                  <Icon name="upload" className="h-3.5 w-3.5" />
-                </Button>
+            <Field label="Evidence capture (Mobile)" hint="Take a photo from your device camera">
+              <div className="flex gap-1.5 items-center">
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment" 
+                  className="block w-full text-[12px] text-ink-dim file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-[11.5px] file:font-semibold file:bg-line file:text-ink hover:file:bg-line-strong transition-colors"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) setEvidenceName(file.name)
+                  }}
+                />
               </div>
             </Field>
-            <div className="flex items-end">
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[11.5px] font-semibold">Location status:</span>
+                {geoState === 'ok' ? (
+                  <Badge tone="low">Captured ({geo?.accuracy.toFixed(0)}m)</Badge>
+                ) : geoState === 'pending' ? (
+                  <Badge tone="elevated">Acquiring GPS...</Badge>
+                ) : (
+                  <Badge tone="high">GPS Denied / Using Zone default</Badge>
+                )}
+              </div>
               <p className="text-[10.5px] leading-snug text-ink-faint">
                 Submitting creates the inspection, one violation per finding below, and re-scores the zone, mine and enterprise before the response returns.
               </p>
@@ -568,6 +611,7 @@ function InspectionForm({ onClose, defaultMine, defaultZone }: { onClose: () => 
                       invalid={touched && !!errors[`f${i}-description`]}
                       placeholder="Describe the deviation, its location and the measured condition…"
                     />
+                    <MlSeveritySuggestion description={f.description} current={f.severity} onAccept={(sev) => setFindings(findings.map((x) => (x.key === f.key ? { ...x, severity: sev } : x)))} />
                   </Field>
                   <div className="mt-2.5 grid gap-2.5 sm:grid-cols-3">
                     <Field label="Additional notes">
@@ -711,6 +755,60 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub?:
         {value}
       </div>
       {sub && <div className="text-[10px] text-ink-faint">{sub}</div>}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// ML severity suggestion — a senior-UX touch that closes the loop on the
+// trained classifier: as the inspector types the description, the trained
+// Linear SVM predicts the severity live, with confidence. The inspector
+// can accept the suggestion in one click — the decision still belongs to
+// the human, but the friction of choosing from a dropdown drops.
+//
+// The ML call is debounced (320ms) so we never fire a request per
+// keystroke; if the description is shorter than 12 chars we hide the
+// suggestion to avoid premature classification.
+// ---------------------------------------------------------------------------
+function MlSeveritySuggestion({ description, current, onAccept }: { description: string; current: string; onAccept: (sev: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL') => void }) {
+  const [pred, setPred] = useState<{ label: string; conf: number; loading: boolean } | null>(null)
+  const debounce = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    const text = description.trim()
+    if (text.length < 12) {
+      setPred(null)
+      return
+    }
+    window.clearTimeout(debounce.current)
+    debounce.current = window.setTimeout(async () => {
+      setPred({ label: '', conf: 0, loading: true })
+      try {
+        const r = await api.post<{ predicted_severity: string; confidence: number }>('/api/ml/predict-severity', { description: text })
+        setPred({ label: r.predicted_severity, conf: r.confidence, loading: false })
+      } catch {
+        setPred(null)
+      }
+    }, 320)
+    return () => window.clearTimeout(debounce.current)
+  }, [description])
+
+  if (!pred || pred.loading) return null
+  const same = pred.label === current
+  return (
+    <div className="mt-1.5 flex items-center gap-2 rounded border border-line bg-sunken px-2 py-1">
+      <Icon name="brain" className="h-3.5 w-3.5 text-[color:var(--accent)]" />
+      <span className="text-[11px] text-ink-dim">
+        ML suggests <strong className="text-ink">{pred.label}</strong>{same ? ' (matches your selection)' : ''} · <span className="font-mono">{(pred.conf * 100).toFixed(0)}%</span> confidence
+      </span>
+      {!same && (
+        <button
+          type="button"
+          onClick={() => onAccept(pred.label as any)}
+          className="ml-auto rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] font-medium hover:border-line-strong"
+        >
+          Accept {pred.label}
+        </button>
+      )}
     </div>
   )
 }

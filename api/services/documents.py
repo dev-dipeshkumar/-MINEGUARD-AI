@@ -41,6 +41,7 @@ CLASSIFICATION_RULES: List[tuple[str, re.Pattern]] = [
     ("MEASUREMENT_SHEET", re.compile(r"methane|dust measurement|anemometer|sampling|readings", re.I)),
     ("CORRECTIVE_EVIDENCE", re.compile(r"rectification|before and after|re[- ]?inspection|closure note", re.I)),
     ("MINING_PLAN", re.compile(r"mining plan|scheme of mining|layout plan|geo[- ]?electrical", re.I)),
+    ("CONTRACTOR_INVOICE", re.compile(r"invoice|bill of supply|contractor payment|payment advice", re.I)),
 ]
 
 FIELD_PATTERNS: Dict[str, re.Pattern] = {
@@ -63,6 +64,9 @@ FIELD_PATTERNS: Dict[str, re.Pattern] = {
     "deadline": re.compile(r"(?:deadline|due|complete by|action by)\s*[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2})", re.I),
     "immediate_stop": re.compile(r"immediate stoppage\s*[:\-]?\s*(yes|no)", re.I),
     "period": re.compile(r"(?:period|for the period)\s*[:\-]?\s*([A-Z][a-z]{2}\s*\d{2,4}\s*[–-]\s*[A-Z][a-z]{2}\s*\d{2,4})", re.I),
+    "invoice_no": re.compile(r"(?:invoice no|inv|bill no)\.?\s*[:\-]?\s*([A-Z0-9/\-]{3,15})", re.I),
+    "invoice_amount": re.compile(r"(?:amount|total|payable)\s*(?:rs\.?|inr|₹)?\s*[:\-]?\s*(?:rs\.?|inr|₹)?\s*([\d,]+(?:\.\d{2})?)", re.I),
+    "contractor_name": re.compile(r"(?:contractor|vendor|supplied by)\s*[:\-]?\s*([A-Z][a-zA-Z .&]+(?:Ltd|Limited|Pvt|LLC|Inc|Co|Corporation|Enterprises))", re.I),
 }
 
 SEVERITY_HINTS = [

@@ -490,6 +490,8 @@ export type IconName =
   | 'link'
   | 'eye'
   | 'upload'
+  | 'play'
+  | 'pause'
 
 const PATHS: Record<IconName, string> = {
   dashboard: 'M3 3h7v8H3zM14 3h7v5h-7zM14 11h7v10h-7zM3 14h7v7H3z',
@@ -526,6 +528,8 @@ const PATHS: Record<IconName, string> = {
   link: 'M10 14a4 4 0 0 0 6 .5l2-2a4 4 0 0 0-5.6-5.6l-1 1m-1.4 5.1a4 4 0 0 1-6-.5l-2 2A4 4 0 0 0 9 18.2l1-1',
   eye: 'M12 5C6 5 3 12 3 12s3 7 9 7 9-7 9-7-3-7-9-7Zm0 4a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z',
   upload: 'M12 20V9m0 0 4 4m-4-4-4 4M5 5h14',
+  play: 'M8 5v14l11-7L8 5Z',
+  pause: 'M6 4h4v16H6V4Zm8 0h4v16h-4V4Z',
 }
 
 export function Icon({ name, className }: { name: IconName; className?: string }) {

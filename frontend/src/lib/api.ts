@@ -176,4 +176,26 @@ export const endpoints = {
   reset: '/api/admin/reset',
   scenario: '/api/admin/scenario',
   overrides: '/api/admin/overrides',
+  // --- New modules (PS SIH26024 gap closure) ---
+  production: '/api/production',
+  productionSummary: '/api/production/summary',
+  attendance: '/api/attendance',
+  attendanceSummary: '/api/attendance/summary',
+  contractors: '/api/contractors',
+  contractorsSummary: '/api/contractors/summary',
+  grievances: '/api/grievances',
+  grievancesSummary: '/api/grievances/summary',
+  mlDescribe: '/api/ml/describe',
+  mlPredictSeverity: '/api/ml/predict-severity',
+  mlPredictSeverityBatch: '/api/ml/predict-severity-batch',
+  // 3D scene endpoints — the novel immersive mine site view
+  scene3dPortfolio: '/api/3d/portfolio',
+  scene3dMine: (mineId: string) => `/api/3d/mine/${mineId}`,
+  // Research-grounded additions (v2.2)
+  riskForecast: '/api/risk/forecast',
+  riskForecastZone: (zoneId: string) => `/api/risk/forecast/${zoneId}`,
+  carbonFootprint: '/api/carbon/footprint',
+  carbonLeaderboard: '/api/carbon/leaderboard',
+  sensors: '/api/sensors',
+  sensorIngest: '/api/sensors/ingest',
 }

@@ -4,6 +4,8 @@ import { PageBody, PageHeader } from '../components/layout'
 import { Badge, Button, EmptyState, ErrorState, Icon, Panel, Progress, SegmentedControl, Skeleton, Tabs, cx } from '../components/ui'
 import { ScoreRing, Sparkline, TrendChart } from '../components/charts'
 import { MineMap } from '../components/MineMap'
+import { MineMap3D } from '../components/MineMap3D'
+import { MineScene3D } from '../components/scene3d/MineScene3D'
 import { ZoneDrawer } from '../components/ZoneDrawer'
 import { RiskBadge, RiskTrendBadge } from '../components/risk'
 import { useApp, useAsync } from '../state/app'
@@ -193,6 +195,7 @@ export function MineDetailPage() {
   const { data, loading, error, reload } = useAsync<any>(mineId ? endpoints.mine(mineId) : null, [mineId])
   const [drawer, setDrawer] = useState<string | null>(params.get('zone'))
   const [tab, setTab] = useState<'map' | 'zones' | 'alerts' | 'actions'>('map')
+  const [mapMode, setMapMode] = useState<'2d' | '3d' | 'scene'>('scene')
   useApp()
 
   if (error)
@@ -282,21 +285,62 @@ export function MineDetailPage() {
           </Panel>
 
           <Panel
-            title={tab === 'map' ? 'Mine compliance map' : tab === 'zones' ? 'Zone board' : tab === 'alerts' ? 'Active early warnings' : 'Overdue corrective actions'}
+            title={tab === 'map' ? `Mine compliance map — ${mapMode === 'scene' ? 'immersive 3D scene' : mapMode === '3d' ? '3D site view' : 'GIS map'}` : tab === 'zones' ? 'Zone board' : tab === 'alerts' ? 'Active early warnings' : 'Overdue corrective actions'}
             subtitle={
               tab === 'map'
-                ? 'Rectangles are the stored zone geometry, painted by engine score. Click a zone for its dossier.'
+                ? mapMode === 'scene'
+                  ? 'Immersive 3D scene with mine-type-specific geometry, animated haul trucks/conveyors/ventilation, gas sensors, risk beacons, layer toggles, and a 90-day time scrubber.'
+                  : mapMode === '3d'
+                  ? 'Extruded 3D view — risk drives the height. Drag to orbit, scroll to zoom, click a zone to open its dossier.'
+                  : 'Leaflet + OSM — real lat/long for every zone. Click a pin for the dossier.'
                 : tab === 'zones'
                 ? 'Ranked by engine score, with the dominant driver and last round'
                 : tab === 'alerts'
                 ? 'Raised by the early-warning generator for this site'
                 : 'Sorted by days past the committed date'
             }
-            right={tab === 'map' ? <Badge tone="neutral">{mine.zones.length} zones</Badge> : undefined}
+            right={tab === 'map' ? (
+              <div className="flex items-center gap-2">
+                <SegmentedControl
+                  value={mapMode}
+                  onChange={(v) => setMapMode(v as '2d' | '3d' | 'scene')}
+                  options={[
+                    { value: 'scene', label: 'Scene' },
+                    { value: '3d', label: '3D' },
+                    { value: '2d', label: 'GIS' },
+                  ]}
+                />
+                <Badge tone="neutral">{mine.zones.length} zones</Badge>
+              </div>
+            ) : undefined}
           >
-            {tab === 'map' && (
+            {tab === 'map' && mapMode === '2d' && (
               <MineMap
                 zones={mine.zones.map((z: any) => ({ ...z, open_violations: z.risk?.metrics?.open_violations ?? 0, trend: z.trend?.change ?? 0 }) as any)}
+                selected={drawer}
+                onSelect={(id) => {
+                  setDrawer(id)
+                  const next = new URLSearchParams(params)
+                  next.set('zone', id)
+                  setParams(next, { replace: true })
+                }}
+              />
+            )}
+            {tab === 'map' && mapMode === '3d' && (
+              <MineMap3D
+                zones={mine.zones.map((z: any) => ({ ...z, open_violations: z.risk?.metrics?.open_violations ?? 0, trend: z.trend?.change ?? 0 }) as any)}
+                selected={drawer}
+                onSelect={(id) => {
+                  setDrawer(id)
+                  const next = new URLSearchParams(params)
+                  next.set('zone', id)
+                  setParams(next, { replace: true })
+                }}
+              />
+            )}
+            {tab === 'map' && mapMode === 'scene' && (
+              <MineScene3D
+                mineId={mine.id}
                 selected={drawer}
                 onSelect={(id) => {
                   setDrawer(id)

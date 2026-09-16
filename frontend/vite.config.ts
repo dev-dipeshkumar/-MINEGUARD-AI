@@ -18,5 +18,19 @@ export default defineConfig({
     },
   },
   preview: { host: '0.0.0.0', port: 4173 },
-  build: { outDir: 'dist', sourcemap: false, chunkSizeWarningLimit: 900 },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split the heavy 3D / map libs so the main bundle stays small.
+          three: ['three', '@react-three/fiber', '@react-three/drei'],
+          leaflet: ['leaflet', 'react-leaflet'],
+          react: ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+  },
 })

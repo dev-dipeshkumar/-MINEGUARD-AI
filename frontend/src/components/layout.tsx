@@ -11,19 +11,30 @@ import { bandFor } from '../lib/format'
  * the demo reset that makes a hackathon run safe.
  */
 
-type NavItem = { to: string; label: string; icon: IconName; group: string; badge?: 'alerts' | 'violations' }
+type NavItem = { to: string; label: string; icon: IconName; group: string; badge?: 'alerts' | 'violations'; roles?: string[] }
 
 const NAV: NavItem[] = [
-  { to: '/', label: 'Command Center', icon: 'dashboard', group: 'OVERRIDE' },
-  { to: '/mines', label: 'Mines & Zones', icon: 'map', group: 'OPERATIONS' },
-  { to: '/inspections', label: 'Inspections', icon: 'clipboard', group: 'OPERATIONS' },
-  { to: '/violations', label: 'Violations', icon: 'alert', group: 'OPERATIONS' },
-  { to: '/actions', label: 'Corrective Actions', icon: 'wrench', group: 'OPERATIONS' },
-  { to: '/risk', label: 'Risk Intelligence', icon: 'brain', group: 'INTELLIGENCE' },
-  { to: '/early-warning', label: 'Early Warning', icon: 'spark', group: 'INTELLIGENCE', badge: 'alerts' },
-  { to: '/reports', label: 'Reports', icon: 'report', group: 'ENTERPRISE' },
-  { to: '/documents', label: 'Documents', icon: 'file', group: 'ENTERPRISE' },
-  { to: '/admin', label: 'Administration', icon: 'settings', group: 'ENTERPRISE' },
+  { to: '/', label: 'Command Center', icon: 'dashboard', group: 'TODAY', roles: ['ADMIN', 'MANAGER'] },
+  { to: '/3d', label: '3D Portfolio', icon: 'map', group: 'TODAY', roles: ['ADMIN', 'MANAGER'] },
+  { to: '/mines', label: 'Mines & Zones', icon: 'map', group: 'FIELD', roles: ['ADMIN', 'MANAGER'] },
+  { to: '/inspections', label: 'Inspections', icon: 'clipboard', group: 'FIELD' },
+  { to: '/violations', label: 'Violations', icon: 'alert', group: 'FIELD' },
+  { to: '/actions', label: 'Corrective Actions', icon: 'wrench', group: 'FIELD' },
+  { to: '/risk', label: 'Risk Intelligence', icon: 'brain', group: 'INSIGHTS', roles: ['ADMIN', 'MANAGER', 'OFFICER'] },
+  { to: '/forecast', label: '7-Day Forecast', icon: 'spark', group: 'INSIGHTS', roles: ['ADMIN', 'MANAGER', 'OFFICER'] },
+  { to: '/early-warning', label: 'Early Warning', icon: 'spark', group: 'INSIGHTS', badge: 'alerts', roles: ['ADMIN', 'MANAGER', 'OFFICER'] },
+  { to: '/ml', label: 'ML Severity', icon: 'brain', group: 'INSIGHTS', roles: ['ADMIN', 'MANAGER', 'OFFICER'] },
+  // --- Governance modules (PS SIH26024 gap closure) ---
+  { to: '/production', label: 'Production', icon: 'report', group: 'GOVERNANCE', roles: ['ADMIN', 'MANAGER'] },
+  { to: '/attendance', label: 'Attendance', icon: 'clipboard', group: 'GOVERNANCE', roles: ['ADMIN', 'MANAGER', 'OFFICER'] },
+  { to: '/contractors', label: 'Contractors', icon: 'file', group: 'GOVERNANCE', roles: ['ADMIN', 'MANAGER', 'OFFICER'] },
+  { to: '/grievances', label: 'Grievances', icon: 'alert', group: 'GOVERNANCE', roles: ['ADMIN', 'MANAGER', 'OFFICER'] },
+  // --- Sustainability (v2.2 — Ministry of Coal net-zero mandate alignment) ---
+  { to: '/carbon', label: 'Carbon Footprint', icon: 'chart', group: 'SUSTAINABILITY', roles: ['ADMIN', 'MANAGER'] },
+  // ---
+  { to: '/reports', label: 'Reports', icon: 'report', group: 'SYSTEM', roles: ['ADMIN', 'MANAGER', 'OFFICER'] },
+  { to: '/documents', label: 'Documents', icon: 'file', group: 'SYSTEM', roles: ['ADMIN', 'MANAGER'] },
+  { to: '/admin', label: 'Administration', icon: 'settings', group: 'SYSTEM', roles: ['ADMIN'] },
 ]
 
 const COLLAPSE_KEY = 'mineguard.sidebar'
@@ -50,11 +61,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const groups = useMemo(() => {
     const out: Record<string, NavItem[]> = {}
+    const currentRole = actor?.role || 'INSPECTOR'
     NAV.forEach((n) => {
-      ;(out[n.group] ||= []).push(n)
+      if (!n.roles || n.roles.includes(currentRole)) {
+        ;(out[n.group] ||= []).push(n)
+      }
     })
     return out
-  }, [])
+  }, [actor?.role])
 
   const enterprise = boot?.enterprise
   const tone = enterprise ? bandFor(enterprise.risk_score).tone : 'low'
@@ -257,7 +271,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
             }
             if (e.key === 'Escape') setOpen(false)
           }}
-          placeholder="Search mines, zones, officers, violation IDs…"
+          placeholder="Search mines, zones, officers, violation IDs…  ·  press ⌘K for command palette"
           aria-label="Global search"
           className="field-input pl-7 pr-14 text-[12.5px]"
         />

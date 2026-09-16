@@ -21,12 +21,13 @@ from __future__ import annotations
 import os
 import time
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .routers import enterprise, intelligence, workflow
+from .routers import enterprise, governance, intelligence, workflow
+from .services import sensors as sensor_service
 from .store import store
 
 FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
@@ -68,6 +69,7 @@ async def value_error_handler(request: Request, exc: ValueError):
 app.include_router(intelligence.router)
 app.include_router(workflow.router)
 app.include_router(enterprise.router)
+app.include_router(governance.router)
 
 
 @app.get("/api")
@@ -100,6 +102,14 @@ def api_root():
             "GET  /api/documents    POST /api/documents/upload",
             "GET  /api/reports      POST /api/reports/generate",
             "POST /api/admin/reset  POST /api/admin/scenario",
+            "GET  /api/production   POST /api/production",
+            "GET  /api/attendance   POST /api/attendance",
+            "GET  /api/contractors  POST /api/contractors  PATCH /api/contractors/{id}",
+            "GET  /api/grievances   POST /api/grievances   POST /api/grievances/{id}/advance",
+            "POST /api/ml/predict-severity  POST /api/ml/predict-severity-batch  GET /api/ml/describe",
+            "GET  /api/risk/forecast/{zone_id}  GET  /api/risk/forecast",
+            "GET  /api/carbon/footprint  GET /api/carbon/leaderboard",
+            "POST /api/sensors/ingest  POST /api/sensors/ingest-batch  GET /api/sensors  WS /api/sensors/stream",
         ],
     }
 
@@ -107,6 +117,61 @@ def api_root():
 @app.get("/api/healthz")
 def healthz():
     return {"status": "ok", "as_of": store.data["computed"]["as_of"]}
+
+
+# ---------------------------------------------------------------------------
+# WebSocket: /api/sensors/stream — live sensor readings to the 3D scene
+# ---------------------------------------------------------------------------
+# The sensors service fires a sync callback on every ingest; we register a
+# broadcast that pushes the JSON to all connected WS clients. The 3D scene's
+# GasSensor component subscribes to this and updates its reading + alarm
+# state in real time.
+
+_ws_clients: set = set()
+
+
+@app.websocket("/api/sensors/stream")
+async def ws_sensor_stream(websocket: WebSocket):
+    await websocket.accept()
+    _ws_clients.add(websocket)
+    try:
+        # Send a hello frame so the client knows it connected
+        await websocket.send_json({"type": "hello", "msg": "MINEGUARD sensor stream"})
+        # Keep the connection open; we don't expect inbound messages from the
+        # browser, but if one arrives we'll ignore it.
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _ws_clients.discard(websocket)
+
+
+async def _broadcast(reading: dict) -> None:
+    """Push a reading to every connected WS client."""
+    import json
+    payload = json.dumps({"type": "reading", "reading": reading})
+    dead: set = set()
+    for ws in _ws_clients:
+        try:
+            await ws.send_text(payload)
+        except Exception:
+            dead.add(ws)
+    _ws_clients.difference_update(dead)
+
+
+def _sync_to_async_shim(reading: dict) -> None:
+    """Adapter: sensor service fires sync callbacks; we bridge to async."""
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(_broadcast(reading), loop=loop)
+    except RuntimeError:
+        pass
+
+
+sensor_service.subscribe(_sync_to_async_shim)
 
 
 # Static frontend: when a production build exists, the API serves it, so the

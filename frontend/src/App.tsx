@@ -13,6 +13,15 @@ import { EarlyWarningPage } from './pages/EarlyWarning'
 import { ReportsPage } from './pages/Reports'
 import { DocumentsPage } from './pages/Documents'
 import { AdminPage } from './pages/Admin'
+import { ProductionPage } from './pages/Production'
+import { AttendancePage } from './pages/Attendance'
+import { ContractorsPage } from './pages/Contractors'
+import { GrievancesPage } from './pages/Grievances'
+import { MlSeverityPage } from './pages/MlSeverity'
+import { Portfolio3DPage } from './pages/Portfolio3D'
+import { ForecasterPage } from './pages/Forecaster'
+import { CarbonPage } from './pages/Carbon'
+import { CommandPalette } from './components/CommandPalette'
 
 export function App() {
   return (
@@ -68,9 +77,21 @@ function Shell() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        {/* --- New modules (PS SIH26024 gap closure) --- */}
+        <Route path="/production" element={<ProductionPage />} />
+        <Route path="/attendance" element={<AttendancePage />} />
+        <Route path="/contractors" element={<ContractorsPage />} />
+        <Route path="/grievances" element={<GrievancesPage />} />
+        <Route path="/ml" element={<MlSeverityPage />} />
+        {/* --- 3D portfolio scene (novel) --- */}
+        <Route path="/3d" element={<Portfolio3DPage />} />
+        {/* --- Research-grounded v2.2 additions --- */}
+        <Route path="/forecast" element={<ForecasterPage />} />
+        <Route path="/carbon" element={<CarbonPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <ToastHost />
+      <CommandPalette />
     </AppShell>
   )
 }

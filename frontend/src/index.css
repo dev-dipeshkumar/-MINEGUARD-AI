@@ -257,3 +257,51 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ===========================================================================
+   Leaflet overrides — keeps the GIS map visually consistent with the rest of
+   the design system. Risk-coloured markers use the same risk-* tokens every
+   other chart uses, so the map cannot drift away from the band scale.
+   =========================================================================== */
+.leaflet-container {
+  background: var(--bg-sunken);
+  font-family: inherit;
+  font-size: 11px;
+}
+.leaflet-popup-content-wrapper {
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px -8px rgba(0, 0, 0, 0.45);
+}
+.leaflet-popup-tip {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+}
+.leaflet-popup-content {
+  margin: 10px 12px;
+  line-height: 1.4;
+}
+.leaflet-tooltip {
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
+  font-size: 10.5px;
+}
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: var(--bg-panel);
+  color: var(--text);
+  border-color: var(--line);
+}
+.leaflet-control-attribution {
+  background: var(--bg-panel) !important;
+  color: var(--text-faint);
+  font-size: 9px;
+}
+.leaflet-control-attribution a {
+  color: var(--accent);
+}

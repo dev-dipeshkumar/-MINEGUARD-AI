@@ -46,6 +46,11 @@ class InspectionCreate(BaseModel):
     overall_rating: Literal["COMPLIANT", "NON_COMPLIANT", "NEEDS_ATTENTION"] = "COMPLIANT"
     evidence_file: Optional[str] = None
     findings: List[Finding] = Field(default_factory=list)
+    # Geo-tagged field capture — required by PS SIH26024. The frontend captures
+    # these via navigator.geolocation on the tablet before submit.
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
+    geo_accuracy_m: Optional[float] = None
 
     @field_validator("inspection_date")
     @classmethod
@@ -360,6 +365,10 @@ def create_inspection(payload: InspectionCreate, store=Depends(get_store), actor
             "issues_found": 0,
             "violation_ids": [],
             "evidence_count": 0,
+            # Geo-tagged field capture — PS SIH26024.
+            "latitude": payload.latitude,
+            "longitude": payload.longitude,
+            "geo_accuracy_m": payload.geo_accuracy_m,
         }
         store.data["inspections"].append(inspection)
         inspector = store.user(payload.inspector_id) or {}

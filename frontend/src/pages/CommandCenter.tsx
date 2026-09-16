@@ -5,6 +5,7 @@ import { Badge, Button, EmptyState, ErrorState, Icon, IconButton, Panel, Progres
 import { BandStrip, ScoreRing, Sparkline, TrendChart } from '../components/charts'
 import { RiskBadge } from '../components/risk'
 import { ZoneDrawer } from '../components/ZoneDrawer'
+import { DashboardTabs } from '../components/DashboardTabs'
 import { useApp, useAsync } from '../state/app'
 import { endpoints } from '../lib/api'
 import type { Alert, DashboardPayload, Insight } from '../lib/types'
@@ -19,12 +20,15 @@ import { DemoTray } from '../components/DemoTray'
  * it is emerging → what to do → the queue that has to move.
  */
 export function CommandCenter() {
-  const { data, loading, error, reload } = useAsync<DashboardPayload>(endpoints.dashboard())
-  const { boot } = useApp()
+  const [scope, setScope] = useState<string>('ENTERPRISE')
+  const { data, loading, error, reload } = useAsync<DashboardPayload>(
+    endpoints.dashboard(scope === 'ENTERPRISE' ? undefined : scope),
+    [scope]
+  )
+  const { boot, actor } = useApp()
   const navigate = useNavigate()
   const [inspectZone, setInspectZone] = useState<string | null>(null)
   const [openAlert, setOpenAlert] = useState<string | null>(null)
-  const [scope, setScope] = useState<string>('ENTERPRISE')
 
   const dash = data
   const kpi = dash?.kpis
@@ -51,7 +55,7 @@ export function CommandCenter() {
                 Enterprise
               </ScopeChip>
               {boot?.mines.map((m) => (
-                <ScopeChip key={m.id} active={scope === m.code} onClick={() => setScope(m.code)}>
+                <ScopeChip key={m.id} active={scope === m.id} onClick={() => setScope(m.id)}>
                   {m.code}
                 </ScopeChip>
               ))}
@@ -61,9 +65,12 @@ export function CommandCenter() {
             </Button>
           </>
         }
+        tabs={<DashboardTabs />}
       />
 
       <PageBody className="space-y-3.5">
+        {/* ---------------------------------------------------- today's work */}
+        <TodaysWork kpi={kpi} alerts={dash?.priority_alerts} role={actor?.role ?? 'INSPECTOR'} />
         {/* ------------------------------------------------------ hero row */}
         <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,2fr)]">
           <Panel
@@ -469,7 +476,6 @@ export function CommandCenter() {
       </PageBody>
 
       <ZoneDrawer zoneId={inspectZone} onClose={() => setInspectZone(null)} />
-      <DemoTray />
     </>
   )
 }
@@ -638,6 +644,72 @@ function InsightsPanel({ insights, loading, onNavigate }: { insights: Insight[] 
           ))}
         </ul>
       )}
+    </Panel>
+  )
+}
+
+// ===========================================================================
+// Today's Work — a role-aware "what should I do now" panel.
+//
+// Senior-UX rationale: the Command Center has 7+ tiles of operational
+// telemetry; that's good for managers. For an inspector on a tablet
+// starting their shift, the question is simpler: "where do I go first?".
+// This panel answers that in 4 buttons max, with the count of work
+// behind each so the user knows what they're committing to.
+// ===========================================================================
+function TodaysWork({ kpi, alerts, role }: { kpi: any; alerts: any[] | undefined; role: string }) {
+  const navigate = useNavigate()
+  // Role-aware priorities
+  const items = useMemo(() => {
+    const out: { label: string; to: string; sub: string; tone: string; icon: 'alert' | 'wrench' | 'clipboard' | 'plus' | 'brain' | 'spark' }[] = []
+    const criticalAlerts = (alerts ?? []).filter((a) => a.severity === 'CRITICAL').length
+    if (role === 'INSPECTOR') {
+      // Inspector: record rounds, see their open actions, log grievances
+      out.push({ label: 'Record an inspection', to: '/inspections?new=1', sub: 'Open the form on the zone of your choice', tone: 'var(--accent)', icon: 'plus' })
+      if (kpi?.unassigned_violations) out.push({ label: 'Triage unassigned findings', to: '/violations?status=OPEN_ANY', sub: `${kpi.unassigned_violations} waiting for an owner`, tone: 'var(--risk-elevated)', icon: 'alert' })
+      if (criticalAlerts) out.push({ label: 'Review critical alerts', to: '/early-warning?severity=CRITICAL', sub: `${criticalAlerts} active critical warnings`, tone: 'var(--risk-critical)', icon: 'spark' })
+    } else if (role === 'OFFICER') {
+      out.push({ label: 'Clear verification queue', to: '/actions?status=SUBMITTED', sub: `${kpi?.verification_backlog ?? 0} awaiting verification`, tone: 'var(--risk-elevated)', icon: 'wrench' })
+      if (kpi?.overdue_actions) out.push({ label: 'Resolve overdue actions', to: '/actions?status=OVERDUE', sub: `${kpi.overdue_actions} past their committed date`, tone: 'var(--risk-high)', icon: 'wrench' })
+      out.push({ label: 'Record an inspection', to: '/inspections?new=1', sub: 'If a field round is due', tone: 'var(--accent)', icon: 'plus' })
+    } else if (role === 'MANAGER') {
+      if (criticalAlerts) out.push({ label: 'Acknowledge critical alerts', to: '/early-warning?severity=CRITICAL', sub: `${criticalAlerts} need a decision`, tone: 'var(--risk-critical)', icon: 'spark' })
+      out.push({ label: 'Review high-risk zones', to: '/mines?band=HIGH', sub: `${kpi?.high_risk_zones ?? 0} zones in HIGH/CRITICAL`, tone: 'var(--risk-high)', icon: 'alert' })
+      if (kpi?.overdue_actions) out.push({ label: 'Escalate overdue work', to: '/actions?status=OVERDUE', sub: `${kpi.overdue_actions} past committed date`, tone: 'var(--risk-elevated)', icon: 'wrench' })
+      out.push({ label: 'Mark attendance', to: '/attendance', sub: 'Today\'s muster at the gate', tone: 'var(--accent)', icon: 'clipboard' })
+    } else { // ADMIN
+      out.push({ label: 'Run the ML classifier', to: '/ml', sub: 'Predict severity from free-text', tone: 'var(--accent)', icon: 'brain' })
+      out.push({ label: 'Inspect the portfolio', to: '/mines', sub: 'All sites at a glance', tone: 'var(--accent)', icon: 'alert' })
+      if (criticalAlerts) out.push({ label: 'Critical alerts', to: '/early-warning?severity=CRITICAL', sub: `${criticalAlerts} active`, tone: 'var(--risk-critical)', icon: 'spark' })
+      out.push({ label: 'Admin & engine config', to: '/admin', sub: 'Reset demo, switch identity', tone: 'var(--accent)', icon: 'plus' })
+    }
+    return out.slice(0, 4)
+  }, [kpi, alerts, role])
+
+  return (
+    <Panel
+      title={`Today's work${role ? ` · as ${role.toLowerCase()}` : ''}`}
+      subtitle="Role-aware priorities — what to do first. The numbers behind each button come from the live KPI tiles."
+      right={<Badge tone="neutral">{items.length} actions</Badge>}
+    >
+      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+        {items.map((it, i) => (
+          <button
+            key={i}
+            onClick={() => navigate(it.to)}
+            className="group relative flex min-h-[88px] flex-col justify-between overflow-hidden rounded border border-line bg-sunken p-2.5 text-left transition-all hover:border-line-strong hover:bg-raised"
+          >
+            <span className="absolute inset-x-0 top-0 h-[2px]" style={{ background: it.tone }} />
+            <div className="flex items-start justify-between">
+              <Icon name={it.icon} className="h-3.5 w-3.5 text-ink-faint" />
+            </div>
+            <div>
+              <div className="text-[12.5px] font-semibold leading-tight">{it.label}</div>
+              <div className="mt-0.5 text-[10.5px] text-ink-faint">{it.sub}</div>
+            </div>
+          </button>
+        ))}
+      </div>
     </Panel>
   )
 }

@@ -86,6 +86,8 @@ MINES = [
         "regulatory_body": "DGMS Eastern Zone",
         "reporting_current": True,
         "licence": "RIL/BC/WB/1147",
+        "latitude": 23.6492,
+        "longitude": 87.1158,
         "description": "Multi-seam underground colliery. Highest mechanisation index in the portfolio; conveyor and equipment yard load has grown 22% in two quarters.",
     },
     {
@@ -101,6 +103,8 @@ MINES = [
         "regulatory_body": "DGMS Central Zone",
         "reporting_current": False,
         "licence": "RIL/BC/JH/2093",
+        "latitude": 23.7867,
+        "longitude": 85.9636,
         "description": "Large open-cast deposit adjacent to a residential belt; dust and discharge obligations dominate the compliance profile.",
     },
     {
@@ -116,6 +120,8 @@ MINES = [
         "regulatory_body": "DGMS Central Zone",
         "reporting_current": True,
         "licence": "RIL/SECG/CG/0781",
+        "latitude": 22.3667,
+        "longitude": 82.6833,
         "description": "Deep bordar-pillar workings with an active goaf ignition history. Ventilation and strata control carry elevated intrinsic risk.",
     },
     {
@@ -131,6 +137,8 @@ MINES = [
         "regulatory_body": "DGMS Eastern Zone",
         "reporting_current": True,
         "licence": "RIL/CCL/JH/3312",
+        "latitude": 23.7957,
+        "longitude": 86.4304,
         "description": "Reference site for process discipline: fully digitised inspection rounds, near-perfect closure rate, no overdue actions.",
     },
 ]
@@ -618,6 +626,15 @@ def build_seed() -> Dict[str, Any]:  # noqa: C901 - declarative data assembly
     for z in ZONE_TEMPLATES:
         mine = next(m for m in MINES if m["id"] == z["mine"])
         dept = DEPARTMENT_BY_ZONE_TYPE.get(z["zone_type"], "SAFETY")
+        # Derive a real-world lat/long for the zone by offsetting from the mine centre
+        # using the schematic geometry already on the zone template. This keeps the
+        # GIS map honest: zones are sub-sites of the mine, not free-floating pins.
+        geom = z["geometry"]
+        base_lat = mine.get("latitude", 23.0)
+        base_lon = mine.get("longitude", 86.0)
+        # ~0.004 degrees (~450m) offsets — small enough to keep zones inside the lease.
+        zone_lat = round(base_lat + (geom["y"] - 30) * 0.0013, 5)
+        zone_lon = round(base_lon + (geom["x"] - 30) * 0.0015, 5)
         zone_row = {
             "id": z["zone_id"],
             "mine_id": z["mine"],
@@ -629,6 +646,8 @@ def build_seed() -> Dict[str, Any]:  # noqa: C901 - declarative data assembly
             "inspection_cadence_days": z["cadence"],
             "notes": z.get("notes", ""),
             "geometry": z["geometry"],
+            "latitude": zone_lat,
+            "longitude": zone_lon,
             "status": "OPERATIONAL",
         }
 
@@ -663,6 +682,14 @@ def build_seed() -> Dict[str, Any]:  # noqa: C901 - declarative data assembly
                     "issues_found": len(findings_here),
                     "violation_ids": [],
                     "evidence_count": 1 if findings_here else 0,
+                    # Geo-tagged field capture: every round carries a real-world
+                    # coordinate near the zone centre, with a small jitter to
+                    # reflect that an inspector walks the zone rather than stands
+                    # on one pin. PS SIH26024 explicitly requires geo-tagged field
+                    # reporting.
+                    "latitude": round(zone_lat + ((insp_n % 5) - 2) * 0.00035, 5),
+                    "longitude": round(zone_lon + ((insp_n % 7) - 3) * 0.00035, 5),
+                    "geo_accuracy_m": 12 + (insp_n % 8),
                 }
             )
 
@@ -871,6 +898,18 @@ def build_seed() -> Dict[str, Any]:  # noqa: C901 - declarative data assembly
         }
     )
 
+    # ====================================================================
+    # NEW MODULES — closes PS SIH26024 gaps:
+    # production_reports, attendance, contractors, grievances
+    # Each is authored as operational reality (records a human wrote), not
+    # display text; the four module services derive their dashboards from
+    # these records the same way the risk engine derives a score.
+    # ====================================================================
+    production_reports = _seed_production(today)
+    attendance = _seed_attendance(today)
+    contractors = _seed_contractors(today)
+    grievances = _seed_grievances(today)
+
     return {
         "version": 1,
         "history_days": HISTORY_DAYS,
@@ -905,6 +944,11 @@ def build_seed() -> Dict[str, Any]:  # noqa: C901 - declarative data assembly
         "corrective_actions": actions,
         "evidence": evidence,
         "documents": documents,
+        # New modules — each one closes an explicit PS SIH26024 line item.
+        "production_reports": production_reports,
+        "attendance": attendance,
+        "contractors": contractors,
+        "grievances": grievances,
         "risk_history": [],
         "workflow_overrides": [],
         "activity": activity,
@@ -1037,3 +1081,182 @@ def _seed_documents(today: date) -> List[dict]:
             "flags": ["unreadable source", "no text layer"],
         },
     ]
+
+
+# ---------------------------------------------------------------------------
+# NEW MODULE SEEDS — production, attendance, contractors, grievances
+# ---------------------------------------------------------------------------
+# These four builders are deliberately compact: enough data to drive a
+# dashboard, no more. The frontend pages derive their KPIs from these
+# records the same way the command center derives KPIs from violations.
+# ---------------------------------------------------------------------------
+
+PRODUCTION_TARGETS_KT = {
+    "MINE-ALPHA": 1850,
+    "MINE-BRAHMA": 3100,
+    "MINE-GARBA": 1240,
+    "MINE-NEELAM": 2050,
+}
+
+
+def _seed_production(today: date) -> List[dict]:
+    """Monthly production returns for the last 6 months — one row per mine per month."""
+    out: List[dict] = []
+    seq = 0
+    for m in MINES:
+        target = PRODUCTION_TARGETS_KT[m["id"]]
+        for months_ago in range(5, -1, -1):
+            seq += 1
+            d = today - timedelta(days=30 * months_ago + 5)
+            # Performance ranges 78% (Brahma, struggling) to 102% (Neelam, on-plan).
+            perf = {
+                "MINE-ALPHA": 0.88 + 0.04 * (5 - months_ago),
+                "MINE-BRAHMA": 0.74 + 0.03 * (5 - months_ago),
+                "MINE-GARBA": 0.82 + 0.02 * (5 - months_ago),
+                "MINE-NEELAM": 0.96 + 0.012 * (5 - months_ago),
+            }[m["id"]]
+            actual = round(target * perf / 12, 1)  # monthly share
+            out.append(
+                {
+                    "id": f"PRD-{seq:04d}",
+                    "mine_id": m["id"],
+                    "mine_name": m["name"],
+                    "period_month": d.strftime("%Y-%m"),
+                    "period_label": d.strftime("%b %Y"),
+                    "target_kt": round(target / 12, 1),
+                    "actual_kt": actual,
+                    "variance_pct": round((actual - target / 12) / (target / 12) * 100, 1),
+                    "performance_pct": round(perf * 100, 1),
+                    "shifts_worked": 26 - (2 if months_ago == 0 else 0),
+                    "overburden_m3": round(target * 4.5 * perf / 12, 0),
+                    "strip_ratio": 2.8 + (0.4 if m["mine_type"] == "OPEN_CAST" else 0.0),
+                    "reported_by": "U-301" if m["id"] == "MINE-ALPHA" else "U-302",
+                    "reported_at": d.isoformat(),
+                    "status": "SUBMITTED" if months_ago > 0 else "DRAFT",
+                    "verified": months_ago > 0,
+                    "remarks": (
+                        "Conveyor CV-2 downtime reduced output by 8% against plan."
+                        if m["id"] == "MINE-ALPHA" and months_ago <= 1
+                        else "Dust suppression water main outage impacted 2 shifts."
+                        if m["id"] == "MINE-BRAHMA" and months_ago <= 1
+                        else "Within plan; no exceptional variance."
+                    ),
+                }
+            )
+    return out
+
+
+def _seed_attendance(today: date) -> List[dict]:
+    """Daily attendance snapshots for the last 14 days per mine — geo-tagged at the muster point."""
+    out: List[dict] = []
+    seq = 0
+    for m in MINES:
+        wf = m["workforce"]
+        lat = m.get("latitude", 23.0)
+        lon = m.get("longitude", 86.0)
+        for days_ago in range(13, -1, -1):
+            seq += 1
+            d = today - timedelta(days=days_ago)
+            is_sunday = d.weekday() == 6
+            # Brahma misses target attendance often (worker unrest in PS narrative).
+            present_rate = {
+                "MINE-ALPHA": 0.94 if not is_sunday else 0.32,
+                "MINE-BRAHMA": 0.82 if not is_sunday else 0.22,
+                "MINE-GARBA": 0.91 if not is_sunday else 0.28,
+                "MINE-NEELAM": 0.97 if not is_sunday else 0.35,
+            }[m["id"]]
+            present = int(wf * present_rate)
+            absent = wf - present
+            out.append(
+                {
+                    "id": f"ATT-{seq:04d}",
+                    "mine_id": m["id"],
+                    "mine_name": m["name"],
+                    "date": d.isoformat(),
+                    "weekday": d.strftime("%a"),
+                    "workforce_strength": wf,
+                    "present": present,
+                    "absent": absent,
+                    "on_leave": int(absent * 0.4),
+                    "absent_unauthorised": int(absent * 0.6),
+                    "present_pct": round(present_rate * 100, 1),
+                    # Geo-tagged muster — PS requires geo-tagged attendance.
+                    "latitude": round(lat + 0.0009, 5),
+                    "longitude": round(lon - 0.0007, 5),
+                    "geo_source": "BIOGRID-face-terminal",
+                    "contractor_workers": int(wf * 0.18),
+                    "shifts_run": 0 if is_sunday else (3 if m["mine_type"] == "UNDERGROUND" else 2),
+                    "verified_by": "U-203" if m["id"] == "MINE-ALPHA" else "U-302",
+                }
+            )
+    return out
+
+
+CONTRACTOR_CATALOG = [
+    {"id": "CTR-001", "name": "Bharat Heavy Electricals Ltd — Conveyor Maintenance", "service": "EQUIPMENT_MAINTENANCE", "mine_id": "MINE-ALPHA", "value_inr_lakh": 420.0, "duration_months": 12, "status": "ACTIVE", "compliant": True, "performance_pct": 88.0, "pan": "AABCB5870L", "gst": "20AABCB5870L1Z5", "labour_strength": 64, "incumbent_since_months": 8},
+    {"id": "CTR-002", "name": "Eastern Constructions — OB Removal", "service": "OVERBURDEN_REMOVAL", "mine_id": "MINE-BRAHMA", "value_inr_lakh": 1850.0, "duration_months": 24, "status": "ACTIVE", "compliant": False, "performance_pct": 71.0, "pan": "AAACE6742P", "gst": "20AAACE6742P1Z2", "labour_strength": 220, "incumbent_since_months": 14},
+    {"id": "CTR-003", "name": "MineCare Health Services — Medical Surveillance", "service": "MEDICAL_HEALTH", "mine_id": "MINE-GARBA", "value_inr_lakh": 78.0, "duration_months": 36, "status": "ACTIVE", "compliant": True, "performance_pct": 94.0, "pan": "AALCM2211K", "gst": "22AALCM2211K1ZQ", "labour_strength": 12, "incumbent_since_months": 22},
+    {"id": "CTR-004", "name": "GreenEarth Afforestation — Reclamation", "service": "RECLAMATION", "mine_id": "MINE-BRAHMA", "value_inr_lakh": 145.0, "duration_months": 18, "status": "AT_RISK", "compliant": False, "performance_pct": 42.0, "pan": "AAGFG3344R", "gst": "20AAGFG3344R1Z9", "labour_strength": 36, "incumbent_since_months": 9},
+    {"id": "CTR-005", "name": "SafeLift Hoisting — Shaft Maintenance", "service": "SHAFT_MAINTENANCE", "mine_id": "MINE-ALPHA", "value_inr_lakh": 240.0, "duration_months": 12, "status": "ACTIVE", "compliant": True, "performance_pct": 91.0, "pan": "AACCS9988M", "gst": "20AACCS9988M1Z7", "labour_strength": 28, "incumbent_since_months": 4},
+    {"id": "CTR-006", "name": "CoalTrak Logistics — Rake Loading", "service": "LOGISTICS_DISPATCH", "mine_id": "MINE-NEELAM", "value_inr_lakh": 310.0, "duration_months": 24, "status": "ACTIVE", "compliant": True, "performance_pct": 96.0, "pan": "AADCL1122T", "gst": "22AADCL1122T1Z3", "labour_strength": 48, "incumbent_since_months": 16},
+    {"id": "CTR-007", "name": "Ventilation Dynamics — Gas Monitoring", "service": "VENTILATION_GAS", "mine_id": "MINE-GARBA", "value_inr_lakh": 95.0, "duration_months": 12, "status": "EXPIRED", "compliant": False, "performance_pct": 0.0, "pan": "AAHVD7788B", "gst": "22AAHVD7788B1ZK", "labour_strength": 8, "incumbent_since_months": 13},
+]
+
+
+def _seed_contractors(today: date) -> List[dict]:
+    out: List[dict] = []
+    for c in CONTRACTOR_CATALOG:
+        row = dict(c)
+        row["contract_start"] = (today - timedelta(days=30 * row["incumbent_since_months"])).isoformat()
+        row["contract_end"] = (today + timedelta(days=30 * (row["duration_months"] - row["incumbent_since_months"]))).isoformat()
+        row["days_to_expiry"] = (date.fromisoformat(row["contract_end"]) - today).days
+        # Compliance flags pulled from record, not asserted.
+        flags: List[str] = []
+        if not row["compliant"]:
+            flags.append("Statutory compliance gap — PF/ESI return outstanding or workman register not updated")
+        if row["performance_pct"] < 60:
+            flags.append("Performance below 60% of schedule-of-work milestones")
+        if row["status"] == "EXPIRED":
+            flags.append("Contract expired; workman transition plan required")
+        if row["days_to_expiry"] < 60 and row["status"] == "ACTIVE":
+            flags.append(f"Renewal due in {row['days_to_expiry']} days")
+        row["flags"] = flags
+        row["audit_last_date"] = (today - timedelta(days=45 + hash(c["id"]) % 60)).isoformat()
+        row["audit_status"] = "CLEAN" if row["compliant"] and row["performance_pct"] > 70 else "OBSERVATIONS" if row["performance_pct"] > 50 else "NON_CONFORMANT"
+        out.append(row)
+    return out
+
+
+GRIEVANCE_SEED = [
+    {"title": "Delayed wage disbursement for contract workers", "category": "WAGES", "severity": "HIGH", "mine_id": "MINE-BRAHMA", "department": "LABOUR", "raised_by": "Sunil Yadav (worker rep)", "days_open": 18, "status": "UNDER_REVIEW"},
+    {"title": "PPE issue — sizes unavailable for women workers", "category": "SAFETY_EQUIPMENT", "severity": "MEDIUM", "mine_id": "MINE-ALPHA", "department": "SAFETY", "raised_by": "Meera Nair", "days_open": 7, "status": "ASSIGNED"},
+    {"title": "Drinking water not potable at shift change in Zone C", "category": "WELFARE", "severity": "HIGH", "mine_id": "MINE-BRAHMA", "department": "LABOUR", "raised_by": "Vikram Sheth", "days_open": 12, "status": "UNDER_REVIEW"},
+    {"title": "Canteen food quality below standard — repeated", "category": "WELFARE", "severity": "LOW", "mine_id": "MINE-GARBA", "department": "LABOUR", "raised_by": "anonymous", "days_open": 25, "status": "RESOLVED"},
+    {"title": "Harassment by overman — Zone B night shift", "category": "HARASSMENT", "severity": "CRITICAL", "mine_id": "MINE-ALPHA", "department": "LABOUR", "raised_by": "withheld", "days_open": 4, "status": "ESCALATED"},
+    {"title": "Transport bus timing does not match shift end", "category": "TRANSPORT", "severity": "MEDIUM", "mine_id": "MINE-NEELAM", "department": "LABOUR", "raised_by": "Ravi Kulkarni", "days_open": 9, "status": "UNDER_REVIEW"},
+    {"title": "Dust mask distribution skipped on Sunday shift", "category": "SAFETY_EQUIPMENT", "severity": "HIGH", "mine_id": "MINE-BRAHMA", "department": "SAFETY", "raised_by": "Sunil Yadav", "days_open": 3, "status": "OPEN"},
+    {"title": "Medical surveillance overdue for 14 workers", "category": "MEDICAL", "severity": "MEDIUM", "mine_id": "MINE-GARBA", "department": "LABOUR", "raised_by": "Sunita Rao", "days_open": 16, "status": "ASSIGNED"},
+]
+
+
+def _seed_grievances(today: date) -> List[dict]:
+    out: List[dict] = []
+    for i, g in enumerate(GRIEVANCE_SEED, start=1):
+        created = today - timedelta(days=g["days_open"])
+        resolved = g["status"] == "RESOLVED"
+        out.append(
+            {
+                "id": f"GRV-{i:04d}",
+                **g,
+                "created_at": created.isoformat(),
+                "updated_at": (created + timedelta(days=min(g["days_open"], 3))).isoformat(),
+                "resolved_at": (today - timedelta(days=2)).isoformat() if resolved else None,
+                "resolution_note": "Canteen vendor changed; sampling introduced." if resolved else None,
+                "channel": "WHATSAPP_BOT" if g["raised_by"] == "anonymous" else "WEB_PORTAL",
+                "language": "en" if i % 2 else "hi",
+                "assigned_to": "U-203" if g["department"] == "LABOUR" else "U-201",
+                "sla_days": 7 if g["severity"] in {"CRITICAL", "HIGH"} else 14,
+                "sla_state": "RESOLVED" if resolved else ("BREACHED" if g["days_open"] > (7 if g["severity"] in {"CRITICAL", "HIGH"} else 14) else "AT_RISK" if g["days_open"] >= (7 if g["severity"] in {"CRITICAL", "HIGH"} else 14) * 0.7 else "ON_TRACK"),
+            }
+        )
+    return out

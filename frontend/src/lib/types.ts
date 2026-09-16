@@ -100,6 +100,9 @@ export interface Zone {
   risk_tone: Tone
   compliance_score: number
   geometry: { x: number; y: number; w: number; h: number; label_anchor?: string }
+  /** Real-world coordinates for the GIS map (PS SIH26024). */
+  latitude?: number
+  longitude?: number
   /** Present on the mine-list projection; the dossier carries the full objects instead. */
   open_violations?: number
   trend?: number
@@ -123,6 +126,9 @@ export interface Mine {
   risk_score: number
   risk_level: string
   compliance_score: number
+  /** Real-world coordinates for the GIS map (PS SIH26024). */
+  latitude?: number
+  longitude?: number
 }
 
 export interface EvidenceItem {
@@ -228,6 +234,9 @@ export interface Inspection {
   zone_name?: string
   zone_short?: string
   violations?: Violation[]
+  latitude?: number
+  longitude?: number
+  image_url?: string
 }
 
 export interface Alert {
@@ -428,4 +437,149 @@ export interface ZoneDossier {
   alerts: Alert[]
   closure_relief: SimulationResult | null
   aging: { id: string; days: number; severity: string; category: string }[]
+}
+
+// ===========================================================================
+// NEW MODULES — Production, Attendance, Contractors, Grievances, ML
+// (PS SIH26024 gap closure)
+// ===========================================================================
+
+export interface ProductionReport {
+  id: string
+  mine_id: string
+  mine_name: string
+  period_month: string
+  period_label: string
+  target_kt: number
+  actual_kt: number
+  variance_pct: number
+  performance_pct: number
+  shifts_worked: number
+  overburden_m3: number
+  strip_ratio: number
+  reported_by: string
+  reported_at: string
+  status: string
+  verified: boolean
+  remarks: string
+}
+
+export interface ProductionSummary {
+  period_month: string
+  total_target_kt: number
+  total_actual_kt: number
+  variance_pct: number
+  performers: { mine_id: string; mine_name: string; performance_pct: number }[]
+  laggards: { mine_id: string; mine_name: string; performance_pct: number; gap_kt: number }[]
+}
+
+export interface AttendanceRecord {
+  id: string
+  mine_id: string
+  mine_name: string
+  date: string
+  weekday: string
+  workforce_strength: number
+  present: number
+  absent: number
+  on_leave: number
+  absent_unauthorised: number
+  present_pct: number
+  latitude: number
+  longitude: number
+  geo_source: string
+  contractor_workers: number
+  shifts_run: number
+  verified_by: string
+}
+
+export interface AttendanceSummary {
+  portfolio_present_pct: number
+  portfolio_absent: number
+  trend: { date: string; present_pct: number }[]
+  weak_mines: { mine_id: string; mine_name: string; present_pct: number }[]
+}
+
+export interface Contractor {
+  id: string
+  name: string
+  service: string
+  mine_id: string
+  value_inr_lakh: number
+  duration_months: number
+  status: 'ACTIVE' | 'AT_RISK' | 'EXPIRED' | 'TERMINATED'
+  compliant: boolean
+  performance_pct: number
+  pan: string
+  gst: string
+  labour_strength: number
+  incumbent_since_months: number
+  contract_start: string
+  contract_end: string
+  days_to_expiry: number
+  flags: string[]
+  audit_last_date: string
+  audit_status: 'CLEAN' | 'OBSERVATIONS' | 'NON_CONFORMANT'
+}
+
+export interface ContractorSummary {
+  total_value_inr_lakh: number
+  active_value_inr_lakh: number
+  active_count: number
+  non_compliant_count: number
+  expiring_soon: { id: string; name: string; days_to_expiry: number }[]
+  low_performers: { id: string; name: string; performance_pct: number; mine_name: string }[]
+  audit_breakdown: Record<string, number>
+}
+
+export interface Grievance {
+  id: string
+  title: string
+  category: string
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  mine_id: string
+  mine_name: string
+  department: string
+  raised_by: string
+  channel: string
+  language: string
+  status: 'OPEN' | 'UNDER_REVIEW' | 'ASSIGNED' | 'RESOLVED' | 'ESCALATED'
+  created_at: string
+  updated_at: string
+  resolved_at: string | null
+  resolution_note: string | null
+  days_open: number
+  sla_days: number
+  sla_state: string
+  assigned_to: string
+}
+
+export interface GrievanceSummary {
+  total: number
+  open: number
+  critical_open: number
+  high_open: number
+  breached: number
+  resolved_30d: number
+  by_channel: Record<string, number>
+  by_language: Record<string, number>
+  resolution_rate_pct: number
+}
+
+export interface MlDescriptor {
+  mode: string
+  label: string
+  phase: string
+  classes: string[]
+  training_size: number
+  features: number
+  fallback?: boolean
+}
+
+export interface MlPrediction {
+  predicted_severity: string
+  confidence: number
+  model: string
+  fallback: boolean
+  training_size?: number
 }
